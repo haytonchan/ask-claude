@@ -3,17 +3,70 @@
 A small local website where you type a question and Claude answers.
 
 It runs on **your existing Claude subscription** — the server shells out to the
-`claude` CLI you already have installed, so there is no API key and no extra billing.
+`claude` CLI, so there is no API key and no extra billing.
+
+## Important: what this app actually is
+
+This is only a **front-end**. It does not talk to Anthropic directly — it runs the
+`claude` command on the computer hosting the server and streams the reply to your
+browser. So that computer must have:
+
+1. **Claude Code installed**, and
+2. **`claude` signed in** (run `claude` once and log in).
+
+If you clone this onto a second computer and run it there, that machine needs its
+own Claude Code install and login. Copying the files across is not enough.
 
 ## Run it
 
 ```bash
-node server.js
+npm start
 ```
 
 Then open **http://127.0.0.1:5173**.
 
-To use a different port: `PORT=8080 node server.js`
+Different port: `PORT=8080 npm start`
+
+## Using it from another device (phone, tablet, second laptop)
+
+You do **not** need Claude Code on the other device. Keep the server on the
+computer that already has Claude Code, and let it serve your network:
+
+```bash
+npm run lan
+```
+
+It prints a link with an access code, like `http://192.168.1.157:5173/?key=482913`.
+Open that on the other device — both must be on the same Wi-Fi.
+
+The access code stops anyone else on the network from spending your Claude quota.
+Set your own with `ACCESS_CODE=mycode npm run lan`. On Windows, use
+`set HOST=0.0.0.0` first, then `npm start`.
+
+> This is a convenience guard for a home network, not real security. Do not
+> forward this port to the public internet.
+
+## Troubleshooting
+
+**"Could not find the `claude` command"** — Claude Code is not installed on the
+machine running the server, or it is installed somewhere the server cannot see.
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude          # log in once, then /exit
+```
+
+If it is already installed, find it and point the server at it:
+
+```bash
+which claude
+CLAUDE_BIN=/full/path/to/claude npm start
+```
+
+The server prints which binary it found at startup, so check that line first.
+
+**"OAuth session expired"** — run `claude` in a terminal, type `/login`, then
+restart the server.
 
 ## What it does
 
@@ -28,7 +81,7 @@ To use a different port: `PORT=8080 node server.js`
 
 ## Notes
 
-- Listens on `127.0.0.1` only, so it is not reachable from other machines.
+- Binds to `127.0.0.1` unless you opt into `npm run lan`.
 - All tools are disabled (`--tools ""`), so it can only talk — it cannot read or
   change files on your computer. It is a plain chatbot, not a coding agent.
 - Runs with `--safe-mode`, so your plugins, MCP servers and CLAUDE.md files are
@@ -36,6 +89,7 @@ To use a different port: `PORT=8080 node server.js`
 - Images are resized in the browser to 1568px on the longest edge before being
   sent, which is the resolution Claude reads best. Nothing is written to disk.
 - Supported image formats: PNG, JPEG, GIF, WebP.
+- No dependencies. Node 18 or newer.
 
 ## Files
 
@@ -43,4 +97,5 @@ To use a different port: `PORT=8080 node server.js`
 | --- | --- |
 | `server.js` | Node server; bridges the web page to the `claude` CLI |
 | `public/index.html` | The whole front-end (UI, markdown renderer, streaming) |
+| `package.json` | `npm start` and `npm run lan` |
 | `.claude/launch.json` | Lets Claude Code start the server for previews |
