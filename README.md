@@ -69,6 +69,43 @@ Then open **http://127.0.0.1:5173**.
 
 Different port: `PORT=8080 npm start`
 
+## Always on (macOS)
+
+To keep the server running in the background and start it automatically at login,
+install a launch agent. Create `~/Library/LaunchAgents/com.<you>.ask-claude.plist`
+pointing at `node server.js` with `RunAtLoad` and `KeepAlive` set to true, and these
+environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `HOST` | `0.0.0.0` so other devices can reach it |
+| `PORT` | `5173` |
+| `ACCESS_CODE` | a number you choose; it gates network access |
+| `CLAUDE_BIN` | output of `which claude` (launchd has a minimal PATH) |
+
+Then:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.<you>.ask-claude.plist
+```
+
+It logs to `~/Library/Logs/ask-claude.log`, which prints the URL to open. To stop it:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.<you>.ask-claude.plist
+```
+
+The Mac has to be awake for this to answer, so turn off sleep in
+Settings -> Battery (or Energy Saver) if you want it reachable at all hours.
+
+## Reaching it from outside your home
+
+The access code only guards the local network — do not port-forward this to the
+open internet. To use it from anywhere, put your devices on a private network with
+[Tailscale](https://tailscale.com): install it on the Mac and on your phone, sign
+both into the same account, then open `http://<mac's tailscale ip>:5173/?key=<your code>`.
+The traffic stays private to your own devices and nothing is exposed publicly.
+
 ## Using it from another device (phone, tablet, second laptop)
 
 You do **not** need Claude Code on the other device. Keep the server on the
