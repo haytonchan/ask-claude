@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ask Claude</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --panel: #ffffff;
+    --ink: #1f1e1c;
+    --muted: #78736c;
+    --line: #e7e3dd;
+    --accent: #c96442;
+    --accent-soft: #f3ebe7;
+    --user-bubble: #f0ece6;
+    --code-bg: #f5f2ee;
+    --danger: #b4341f;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1a18;
+      --panel: #232220;
+      --ink: #edeae5;
+      --muted: #9c968d;
+      --line: #35332f;
+      --accent: #d97757;
+      --accent-soft: #33261f;
+      --user-bubble: #2d2b28;
+      --code-bg: #16151300;
+      --code-bg: #1a1917;
+      --danger: #e0836c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    flex: 0 0 auto;
+  }
+  .logo {
+    width: 26px; height: 26px; flex: 0 0 auto;
+    border-radius: 7px;
+    background: var(--accent);
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 14px;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  header .spacer { flex: 1; }
+  select, .btn {
+    font: inherit; font-size: 14px;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 7px 11px;
+    cursor: pointer;
+  }
+  .btn:hover, select:hover { border-color: var(--accent); }
+
+  main {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 28px 20px 8px;
+  }
+  .thread { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+
+  .empty { text-align: center; padding: 8vh 10px; color: var(--muted); }
+  .empty h2 { color: var(--ink); font-size: 26px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
+  .chip {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px; padding: 8px 14px; font-size: 14px;
+    cursor: pointer; color: var(--ink);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .msg { display: flex; flex-direction: column; gap: 6px; }
+  .msg .who { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+  .bubble { border-radius: var(--radius); }
+  .msg.user { align-items: flex-end; }
+  .msg.user .bubble {
+    background: var(--user-bubble);
+    padding: 11px 15px;
+    max-width: 85%;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.assistant .bubble { max-width: 100%; }
+  .msg.error .bubble {
+    border: 1px solid var(--danger); color: var(--danger);
+    padding: 11px 15px; font-size: 14px;
+  }
+  .msg.error code { background: transparent; font-weight: 600; }
+
+  .bubble p { margin: 0 0 12px; }
+  .bubble > *:last-child { margin-bottom: 0; }
+  .bubble h1, .bubble h2, .bubble h3 { margin: 18px 0 8px; line-height: 1.3; font-weight: 600; }
+  .bubble h1 { font-size: 21px; } .bubble h2 { font-size: 19px; } .bubble h3 { font-size: 17px; }
+  .bubble ul, .bubble ol { margin: 0 0 12px; padding-left: 24px; }
+  .bubble li { margin: 3px 0; }
+  .bubble a { color: var(--accent); }
+  .bubble code {
+    background: var(--code-bg); border: 1px solid var(--line);
+    padding: 1px 5px; border-radius: 5px;
+    font: 13.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .bubble pre {
+    background: var(--code-bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 13px 15px; overflow-x: auto; margin: 0 0 12px;
+  }
+  .bubble pre code { background: none; border: 0; padding: 0; }
+  .bubble blockquote {
+    margin: 0 0 12px; padding-left: 14px;
+    border-left: 3px solid var(--line); color: var(--muted);
+  }
+  .bubble hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+
+  .cursor {
+    display: inline-block; width: 8px; height: 16px; vertical-align: -3px;
+    background: var(--accent); border-radius: 2px; animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  footer {
+    flex: 0 0 auto;
+    padding: 12px 20px 20px;
+    background: linear-gradient(to top, var(--bg) 65%, transparent);
+  }
+  form {
+    max-width: 760px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 10px;
+  }
+  form:focus-within { border-color: var(--accent); }
+  form.dragging { border-color: var(--accent); background: var(--accent-soft); }
+  .composer-row { display: flex; align-items: flex-end; gap: 8px; }
+  .icon-btn {
+    flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%;
+    border: 0; background: transparent; color: var(--muted);
+    display: grid; place-items: center; cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--accent-soft); color: var(--accent); }
+  .icon-btn svg { width: 19px; height: 19px; }
+
+  /* pending attachments */
+  .attachments { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 4px 0; }
+  .attachments[hidden] { display: none; }
+  .thumb {
+    position: relative; width: 62px; height: 62px;
+    border-radius: 10px; overflow: hidden; border: 1px solid var(--line);
+    background: var(--code-bg);
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .remove {
+    position: absolute; top: 2px; right: 2px;
+    width: 18px; height: 18px; border-radius: 50%; border: 0;
+    background: rgba(0,0,0,.65); color: #fff;
+    font-size: 12px; line-height: 1; cursor: pointer;
+    display: grid; place-items: center; padding: 0;
+  }
+  .thumb.pending::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(0,0,0,.45) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M12 3a9 9 0 1 0 9 9'/%3E%3C/svg%3E") center/20px no-repeat;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* images inside a sent message */
+  .shots { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-bottom: 6px; }
+  .shots img {
+    max-width: 190px; max-height: 190px;
+    border-radius: 10px; border: 1px solid var(--line); display: block;
+  }
+  textarea {
+    flex: 1; border: 0; outline: 0; resize: none;
+    background: transparent; color: var(--ink);
+    font: inherit; line-height: 1.55;
+    max-height: 200px; padding: 5px 0;
+  }
+  #send {
+    flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%;
+    border: 0; background: var(--accent); color: #fff;
+    display: grid; place-items: center; cursor: pointer;
+  }
+  #send:disabled { opacity: .35; cursor: default; }
+  #send svg { width: 17px; height: 17px; }
+  .hint { max-width: 760px; margin: 8px auto 0; font-size: 12px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✳</div>
+  <h1>Ask Claude</h1>
+  <div class="spacer"></div>
+  <select id="model" title="Model">
+    <option value="sonnet">Sonnet</option>
+    <option value="opus">Opus</option>
+    <option value="haiku">Haiku</option>
+  </select>
+  <button class="btn" id="new-chat">New chat</button>
+</header>
+
+<main id="main">
+  <div class="thread" id="thread">
+    <div class="empty" id="empty">
+      <h2>What can I help you with?</h2>
+      <p>Type a question below. Answers come from your own Claude subscription.</p>
+      <div class="chips">
+        <button class="chip">Explain photosynthesis simply</button>
+        <button class="chip">Help me outline an essay on the Cold War</button>
+        <button class="chip">Quiz me on quadratic equations</button>
+        <button class="chip">Summarise this idea in three bullet points</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <form id="form">
+    <div class="attachments" id="attachments" hidden></div>
+    <div class="composer-row">
+      <button type="button" class="icon-btn" id="attach" title="Add images">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.4 11.05 12.25 20.2a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+      </button>
+      <textarea id="input" rows="1" placeholder="Ask anything…" autofocus></textarea>
+      <button id="send" type="submit" title="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </button>
+    </div>
+    <input type="file" id="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden />
+  </form>
+  <div class="hint">Enter to send · Shift+Enter for a new line · attach, paste or drop images. Claude can make mistakes — check important info.</div>
+</footer>
+
+<script>
+const thread = document.getElementById('thread');
+const main = document.getElementById('main');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const modelSel = document.getElementById('model');
+
+const attachBtn = document.getElementById('attach');
+const fileInput = document.getElementById('file');
+const strip = document.getElementById('attachments');
+
+let sessionId = null;
+let busy = false;
+let pending = [];          // images waiting to be sent
+const MAX_IMAGES = 6;
+const MAX_EDGE = 1568;     // Claude reads images best at or below this
+
+/* ---------- image attachments ---------- */
+async function prepareImage(file) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (file.type !== 'image/png') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+
+  let mediaType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  let dataUrl = canvas.toDataURL(mediaType, 0.9);
+  if (mediaType === 'image/png' && dataUrl.length > 4.5e6) {
+    mediaType = 'image/jpeg';
+    dataUrl = canvas.toDataURL(mediaType, 0.85);
+  }
+  return { mediaType, dataUrl, data: dataUrl.slice(dataUrl.indexOf(',') + 1) };
+}
+
+async function addFiles(files) {
+  const list = [...files].filter((f) => f.type.startsWith('image/'));
+  if (!list.length) return;
+  const room = MAX_IMAGES - pending.length;
+  if (room <= 0) { flash(`You can attach up to ${MAX_IMAGES} images at a time.`); return; }
+
+  for (const file of list.slice(0, room)) {
+    const item = { id: Math.random().toString(36).slice(2), loading: true, name: file.name };
+    pending.push(item);
+    renderStrip();
+    try {
+      Object.assign(item, await prepareImage(file), { loading: false });
+    } catch {
+      pending = pending.filter((p) => p !== item);
+      flash(`Could not read ${file.name || 'that image'}.`);
+    }
+    renderStrip();
+  }
+  if (list.length > room) flash(`Only the first ${room} image${room === 1 ? '' : 's'} were attached.`);
+}
+
+function renderStrip() {
+  strip.innerHTML = '';
+  strip.hidden = pending.length === 0;
+  for (const item of pending) {
+    const box = document.createElement('div');
+    box.className = 'thumb' + (item.loading ? ' pending' : '');
+    if (item.dataUrl) {
+      const img = document.createElement('img');
+      img.src = item.dataUrl;
+      img.alt = item.name || 'attachment';
+      box.appendChild(img);
+    }
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'remove';
+    rm.textContent = '×';
+    rm.title = 'Remove';
+    rm.addEventListener('click', () => {
+      pending = pending.filter((p) => p.id !== item.id);
+      renderStrip();
+    });
+    box.appendChild(rm);
+    strip.appendChild(box);
+  }
+}
+
+let flashTimer = null;
+const HINT = document.querySelector('.hint').textContent;
+function flash(text) {
+  const el = document.querySelector('.hint');
+  el.textContent = text;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { el.textContent = HINT; }, 3500);
+}
+
+/* ---------- tiny markdown renderer ---------- */
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function inline(s) {
+  return s
+    .replace(/`([^`]+)`/g, (_, c) => '<code>' + c + '</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function renderMarkdown(src) {
+  const lines = esc(src).split('\n');
+  let out = '', list = null, para = [], code = null;
+
+  const flushPara = () => { if (para.length) { out += '<p>' + inline(para.join(' ')) + '</p>'; para = []; } };
+  const flushList = () => { if (list) { out += '</' + list + '>'; list = null; } };
+
+  for (const line of lines) {
+    const fence = line.match(/^\s*```(.*)$/);
+    if (fence) {
+      if (code === null) { flushPara(); flushList(); code = []; }
+      else { out += '<pre><code>' + code.join('\n') + '</code></pre>'; code = null; }
+      continue;
+    }
+    if (code !== null) { code.push(line); continue; }
+
+    if (!line.trim()) { flushPara(); flushList(); continue; }
+
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    if (h) { flushPara(); flushList(); const n = Math.min(h[1].length, 3); out += '<h' + n + '>' + inline(h[2]) + '</h' + n + '>'; continue; }
+    if (/^\s*(---|\*\*\*|___)\s*$/.test(line)) { flushPara(); flushList(); out += '<hr>'; continue; }
+    const q = line.match(/^&gt;\s?(.*)$/);
+    if (q) { flushPara(); flushList(); out += '<blockquote>' + inline(q[1]) + '</blockquote>'; continue; }
+
+    const ul = line.match(/^\s*[-*+]\s+(.*)$/);
+    const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if (ul || ol) {
+      flushPara();
+      const want = ul ? 'ul' : 'ol';
+      if (list !== want) { flushList(); out += '<' + want + '>'; list = want; }
+      out += '<li>' + inline((ul || ol)[1]) + '</li>';
+      continue;
+    }
+    flushList();
+    para.push(line.trim());
+  }
+  if (code !== null) out += '<pre><code>' + code.join('\n') + '</code></pre>';
+  flushPara(); flushList();
+  return out;
+}
+
+/* ---------- messages ---------- */
+function addMessage(role, text, images) {
+  document.getElementById('empty')?.remove();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  const who = document.createElement('div');
+  who.className = 'who';
+  who.textContent = role === 'user' ? 'You' : role === 'error' ? 'Problem' : 'Claude';
+
+  wrap.append(who);
+  if (images && images.length) {
+    const shots = document.createElement('div');
+    shots.className = 'shots';
+    for (const img of images) {
+      const el = document.createElement('img');
+      el.src = img.dataUrl;
+      el.alt = img.name || 'attached image';
+      shots.appendChild(el);
+    }
+    wrap.appendChild(shots);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  if (role === 'assistant') bubble.innerHTML = renderMarkdown(text || '');
+  else if (role === 'error') bubble.innerHTML = text;
+  else bubble.textContent = text;
+  if (role === 'user' && !text) bubble.style.display = 'none';
+  wrap.append(bubble);
+  thread.appendChild(wrap);
+  scroll();
+  return bubble;
+}
+function scroll() {
+  const nearBottom = main.scrollHeight - main.scrollTop - main.clientHeight < 160;
+  if (nearBottom || busy) main.scrollTop = main.scrollHeight;
+}
+
+/* ---------- streaming request ---------- */
+async function ask(question, images = []) {
+  busy = true;
+  sendBtn.disabled = true;
+  addMessage('user', question, images);
+
+  const bubble = addMessage('assistant', '');
+  bubble.innerHTML = '<span class="cursor"></span>';
+  let answer = '';
+  let failed = false;
+
+  const paint = () => { bubble.innerHTML = renderMarkdown(answer) + '<span class="cursor"></span>'; scroll(); };
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: question,
+        sessionId,
+        model: modelSel.value,
+        images: images.map((i) => ({ mediaType: i.mediaType, data: i.data })),
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => null);
+      throw new Error((detail && detail.error) || 'Server error ' + res.status);
+    }
+    if (!res.body) throw new Error('No response stream from the server.');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+      for (const part of parts) {
+        const evLine = part.match(/^event: (.*)$/m);
+        const dataLine = part.match(/^data: (.*)$/m);
+        if (!evLine || !dataLine) continue;
+        let data; try { data = JSON.parse(dataLine[1]); } catch { continue; }
+
+        if (evLine[1] === 'session' && data.sessionId) sessionId = data.sessionId;
+        else if (evLine[1] === 'delta') { answer += data.text; paint(); }
+        else if (evLine[1] === 'error') { failed = true; showError(bubble, data.message); }
+      }
+    }
+  } catch (err) {
+    failed = true;
+    showError(bubble, err.message);
+  }
+
+  if (!failed) {
+    bubble.innerHTML = answer ? renderMarkdown(answer) : '<em>No response.</em>';
+  }
+  busy = false;
+  sendBtn.disabled = false;
+  input.focus();
+  scroll();
+}
+
+function showError(bubble, message) {
+  const msg = String(message || 'Something went wrong.');
+  const login = /authenticat|oauth|expired|log ?in/i.test(msg)
+    ? '<br><br>Run <code>claude</code> in your terminal and sign in (<code>/login</code>), then try again.'
+    : '';
+  const wrap = bubble.closest('.msg');
+  wrap.className = 'msg error';
+  wrap.querySelector('.who').textContent = 'Problem';
+  bubble.innerHTML = esc(msg) + login;
+}
+
+/* ---------- events ---------- */
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const q = input.value.trim();
+  if (busy) return;
+  if (pending.some((p) => p.loading)) { flash('Still preparing your images…'); return; }
+  const images = pending.slice();
+  if (!q && !images.length) return;
+  input.value = '';
+  input.style.height = 'auto';
+  pending = [];
+  renderStrip();
+  ask(q, images);
+});
+
+attachBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  addFiles(fileInput.files);
+  fileInput.value = '';
+});
+
+// Paste a screenshot straight into the box.
+window.addEventListener('paste', (e) => {
+  if (busy) return;
+  const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
+  if (files.length) { e.preventDefault(); addFiles(files); }
+});
+
+// Drag images anywhere onto the page.
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => {
+  if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+  e.preventDefault();
+  if (++dragDepth === 1) form.classList.add('dragging');
+});
+window.addEventListener('dragover', (e) => { if (dragDepth) e.preventDefault(); });
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; form.classList.remove('dragging'); } });
+window.addEventListener('drop', (e) => {
+  if (!e.dataTransfer?.files?.length) return;
+  e.preventDefault();
+  dragDepth = 0;
+  form.classList.remove('dragging');
+  if (!busy) addFiles(e.dataTransfer.files);
+});
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+});
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+});
+
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (chip && !busy) ask(chip.textContent);
+});
+
+document.getElementById('new-chat').addEventListener('click', () => {
+  if (busy) return;
+  sessionId = null;
+  pending = [];
+  renderStrip();
+  thread.innerHTML = `
+    <div class="empty" id="empty">
+      <h2>What can I help you with?</h2>
+      <p>Type a question below. Answers come from your own Claude subscription.</p>
+      <div class="chips">
+        <button class="chip">Explain photosynthesis simply</button>
+        <button class="chip">Help me outline an essay on the Cold War</button>
+        <button class="chip">Quiz me on quadratic equations</button>
+        <button class="chip">Summarise this idea in three bullet points</button>
+      </div>
+    </div>`;
+  input.focus();
+});
+</script>
+</body>
+</html>
