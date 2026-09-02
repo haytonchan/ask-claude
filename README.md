@@ -1,9 +1,51 @@
 # Ask Claude
 
-A small local website where you type a question and Claude answers.
+A small website where you type a question and Claude answers.
 
-It runs on **your existing Claude subscription** — the server shells out to the
-`claude` CLI, so there is no API key and no extra billing.
+There are **two versions** in this repo, and they work completely differently:
+
+| | Hosted version (`docs/`) | Local version (`server.js`) |
+| --- | --- | --- |
+| Where it runs | GitHub Pages — always on | Your own computer |
+| Needs | An Anthropic **API key** | Claude Code installed + signed in |
+| Cost | Billed per token to your API account | Included in your Claude subscription |
+| Setup | Open the page, paste your key | `npm start` |
+
+**Live page:** https://haytonchan.github.io/ask-claude/
+
+Pick the hosted version if you want it reachable from anywhere without leaving a
+computer on. Pick the local version if you would rather use your subscription
+than pay per token.
+
+---
+
+# Hosted version (GitHub Pages)
+
+`docs/index.html` is a single static page. It calls the Claude API directly from
+your browser using the official Anthropic SDK, so there is no server at all.
+
+The first time you open it, it asks for an Anthropic API key
+([get one here](https://console.anthropic.com/settings/keys)). The key is saved
+in that browser's local storage and is sent only to `api.anthropic.com` — it is
+never committed to this repo and never reaches any other server. Use the **Key**
+button to change or remove it.
+
+Anyone can open the page, but it does nothing until they supply their own key, so
+publishing it does not expose your account.
+
+Models: Opus 5 (default), Sonnet 5, Haiku 4.5. Each reply shows its token count
+and roughly what it cost.
+
+### Enabling Pages on a fork
+
+Settings -> Pages -> Source: *Deploy from a branch* -> `main` / `/docs`.
+
+---
+
+# Local version (your Claude subscription)
+
+The rest of this README covers `server.js`, which shells out to the `claude` CLI,
+so there is no API key and no extra billing.
 
 ## Important: what this app actually is
 
