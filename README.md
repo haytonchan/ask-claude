@@ -95,8 +95,16 @@ It logs to `~/Library/Logs/ask-claude.log`, which prints the URL to open. To sto
 launchctl unload ~/Library/LaunchAgents/com.<you>.ask-claude.plist
 ```
 
-The Mac has to be awake for this to answer, so turn off sleep in
-Settings -> Battery (or Energy Saver) if you want it reachable at all hours.
+The Mac has to be awake to answer. Wrap the command in `caffeinate -s` so the
+machine stays awake for as long as the server runs:
+
+```
+/usr/bin/caffeinate -s /usr/local/bin/node server.js
+```
+
+`-s` only holds the machine awake while it is on mains power, so a laptop on
+battery still sleeps normally. The display can still sleep either way. This does
+not survive a full shutdown — if the Mac is powered off, nothing is serving.
 
 ## Reaching it from outside your home
 
